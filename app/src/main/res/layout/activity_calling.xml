@@ -41,7 +41,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:visibility="visible">
         <LinearLayout
             android:id="@+id/lnlMakeCall"
             android:layout_width="match_parent"
@@ -85,28 +85,31 @@
                 android:textSize="16sp"
                 android:textColor="@color/colorPrimary"
                 android:layout_marginHorizontal="10dp"/>
-            <androidx.appcompat.widget.AppCompatButton
+            <ImageView
                 android:id="@+id/btdecline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_marginHorizontal="5dp"
-                android:textColor="@color/colorPrimary"
-                android:background="@drawable/white_border_shape_button_rounded"
-                android:text="Decline"/>
-            <androidx.appcompat.widget.AppCompatButton
+                android:padding="4dp"
+                android:background="@drawable/circle_background"
+                app:backgroundTint="@color/colorPrimary"
+                android:src="@drawable/ic_baseline_call_end_24"
+                android:layout_marginHorizontal="5dp"/>
+            <ImageView
                 android:id="@+id/btAns"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:background="@drawable/shape_button_rounded"
-                android:text="ans"
-                android:textColor="@color/white"/>
+                android:src="@drawable/ic_accept"
+                android:padding="4dp"
+                android:background="@drawable/circle_background"
+                app:backgroundTint="@color/colorPrimary"
+                />
         </LinearLayout>
         <RelativeLayout
             android:layout_width="match_parent"
             android:id="@+id/callLayout"
-
+            android:visibility="gone"
             android:layout_height="match_parent">
             <org.webrtc.SurfaceViewRenderer
                 android:id="@+id/remote_view"
@@ -144,7 +147,7 @@
                     android:padding="12dp"
                     android:background="@drawable/circle_background"
                     app:backgroundTint="@color/cardview_dark_background"
-                    app:srcCompat="@drawable/ic_baseline_mic_off_24" />
+                    app:srcCompat="@drawable/ic_baseline_mic_24" />
                 <ImageView
                     android:id="@+id/video_button"
                     android:layout_width="wrap_content"
@@ -155,7 +158,7 @@
                     android:padding="12dp"
                     android:background="@drawable/circle_background"
                     app:backgroundTint="@color/cardview_dark_background"
-                    app:srcCompat="@drawable/ic_baseline_videocam_off_24" />
+                    app:srcCompat="@drawable/ic_baseline_videocam_24" />
                 <ImageView
                     android:id="@+id/end_call_button"
                     android:layout_width="wrap_content"

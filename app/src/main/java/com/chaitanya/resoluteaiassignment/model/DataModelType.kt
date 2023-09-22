@@ -1,5 +1,5 @@
 package com.chaitanya.resoluteaiassignment.model
 
-enum class CallModelType {
+enum class DataModelType {
     Offer, Answer, IceCandidate, StartCall
 }

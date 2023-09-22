@@ -1,61 +1,59 @@
 package com.chaitanya.resoluteaiassignment
 
-import com.chaitanya.resoluteaiassignment.model.CallModel
+import android.util.Log
+import com.chaitanya.resoluteaiassignment.model.DataModel
 import com.google.firebase.database.*
 import com.google.gson.Gson
+import java.util.Objects
 
 class FirebaseClient {
-
     private val gson = Gson()
     private val dbRef = FirebaseDatabase.getInstance().reference
     private var currentUsername: String? = null
     private val LATEST_EVENT_FIELD_NAME = "latest_event"
 
-    fun login(username: String, callBack: SuccessCallBack) {
-        dbRef.child(username).setValue("")
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    currentUsername = username
-                    callBack.onSuccess()
-                }
-            }
+    fun login(username: String, callBack: ()-> Unit) {
+        dbRef.child(username).setValue("").addOnCompleteListener { task ->
+            currentUsername = username
+            callBack()
+        }
     }
 
-    fun sendMessageToOtherUser(CallModel: CallModel, errorCallBack: ErrorCallBack) {
+    fun sendMessageToOtherUser(dataModel: DataModel, errorCallBack: () -> Unit) {
         dbRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.child(CallModel.target).exists()) {
+                if (snapshot.child(dataModel.target).exists()) {
                     // Send the signal to the other user
-                    dbRef.child(CallModel.target).child(LATEST_EVENT_FIELD_NAME)
-                        .setValue(gson.toJson(CallModel))
+                    Log.e("Fa","fddd")
+                    dbRef.child(dataModel.target)
+                        .child(LATEST_EVENT_FIELD_NAME)
+                        .setValue(gson.toJson(dataModel))
                 } else {
-                    errorCallBack.onError()
+                    Log.e("Fa","err")
+                    errorCallBack()
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                errorCallBack.onError()
+                errorCallBack()
             }
         })
     }
 
-    fun observeIncomingLatestEvent(callBack: NewEventCallBack) {
-        currentUsername?.let {
-            dbRef.child(it).child(LATEST_EVENT_FIELD_NAME).addValueEventListener(
-                object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        try {
-                            val data = snapshot.value?.toString()
-                            val callModel = gson.fromJson(data, CallModel::class.java)
-                            callBack.onNewEventReceived(callModel)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+    fun observeIncomingLatestEvent(newEvent: (DataModel) -> Unit) {
+        dbRef.child(currentUsername!!).child(LATEST_EVENT_FIELD_NAME)
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    try {
+                        val data = Objects.requireNonNull(snapshot.value).toString()
+                        val dataModel = gson.fromJson(data, DataModel::class.java)
+                        newEvent(dataModel)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
-
-                    override fun onCancelled(error: DatabaseError) {}
                 }
-            )
-        }
+
+                override fun onCancelled(error: DatabaseError) {}
+            })
     }
 }

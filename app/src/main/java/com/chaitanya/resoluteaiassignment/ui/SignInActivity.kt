@@ -1,13 +1,12 @@
 package com.chaitanya.resoluteaiassignment.ui
 
-import WebRTCRepository
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import com.chaitanya.resoluteaiassignment.MainRepository
 import com.chaitanya.resoluteaiassignment.R
-import com.chaitanya.resoluteaiassignment.SuccessCallBack
 import com.chaitanya.resoluteaiassignment.databinding.ActivitySignInBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -16,14 +15,14 @@ class SignInActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySignInBinding
     private lateinit var auth: FirebaseAuth
-    private lateinit var webRTCRepository : WebRTCRepository
+    private lateinit var webRTCRepository : MainRepository
     private val firestore : FirebaseFirestore = FirebaseFirestore.getInstance()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySignInBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbarSignInActivity)
-        webRTCRepository = WebRTCRepository(this)
+        webRTCRepository = MainRepository.getInstance()
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar!!.setHomeAsUpIndicator(R.drawable.ic_back)
         auth = FirebaseAuth.getInstance()
@@ -49,20 +48,16 @@ class SignInActivity : AppCompatActivity() {
                                 val name = userData?.get("name") as String
                                 val email = userData["email"] as String
                                 val phone = userData["phone"] as String
-                                finishAffinity()
-                                webRTCRepository.loginUser(
-                                    phone, object : SuccessCallBack {
-                                        override fun onSuccess() {
 
-                                        }
+                                webRTCRepository.login(phone,applicationContext){
+                                    finishAffinity()
+                                    val intent = Intent(this, CallingActivity::class.java)
+                                    intent.putExtra("USER", phone)
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
-                                    }
-                                )
-                                val intent = Intent(this, CallingActivity::class.java)
-                                intent.putExtra("USER", phone)
-                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    startActivity(intent)
+                                }
 
-                                startActivity(intent)
 
                             } else {
                                 Log.e("Fs","fafad")

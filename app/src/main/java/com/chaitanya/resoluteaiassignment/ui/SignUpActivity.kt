@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import com.chaitanya.resoluteaiassignment.MainRepository
 import com.chaitanya.resoluteaiassignment.R
 import com.chaitanya.resoluteaiassignment.databinding.ActivitySignUpBinding
 import com.google.firebase.FirebaseException
@@ -23,17 +24,21 @@ class SignUpActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySignUpBinding
     private lateinit var auth: FirebaseAuth
     private lateinit var verificationId: String
+    private lateinit var webRTCRepository : MainRepository
     private lateinit var database : FirebaseDatabase
     private val firestore : FirebaseFirestore = FirebaseFirestore.getInstance()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         setSupportActionBar(binding.toolbarSignUpActivity)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar!!.setHomeAsUpIndicator(R.drawable.ic_back)
         binding.toolbarSignUpActivity.setNavigationOnClickListener { finish() }
         binding.btnSignUp.isEnabled = false
+        webRTCRepository = MainRepository.getInstance()
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance()
         binding.btnVerify.setOnClickListener {
@@ -42,7 +47,7 @@ class SignUpActivity : AppCompatActivity() {
                     .show()
             } else {
                 val phoneNumber = binding.etPhone.text.toString()
-                val nodeRef = database.reference.child("users").child(phoneNumber)
+                val nodeRef = database.reference.child(phoneNumber)
 
 // Check if the phone number node already exists
                 nodeRef.addListenerForSingleValueEvent(object : ValueEventListener {
@@ -118,6 +123,7 @@ class SignUpActivity : AppCompatActivity() {
             }else if (binding.etPassword.text.isNullOrEmpty()){
                 Toast.makeText(this@SignUpActivity , "Enter Email" , Toast.LENGTH_LONG).show()
             }else{
+                binding.btnSignUp.isEnabled = false
                 verifyVerificationCode(binding.etOtp.text.toString())
 
                 auth.createUserWithEmailAndPassword(binding.etEmail.text.toString(),binding.etPassword.text.toString()).addOnSuccessListener{
@@ -132,24 +138,20 @@ class SignUpActivity : AppCompatActivity() {
                         .addOnSuccessListener {
                             // User data stored in Firestore successfully
                             // Now, store data in Realtime Database
-                            database.reference.child("users").child(binding.etPhone.text.toString()).setValue("")
-                                .addOnSuccessListener {
-                                    // Data stored in Realtime Database successfully
-                                    finishAffinity()
-                                    val intent = Intent(this, CallingActivity::class.java)
-                                    intent.putExtra("USER", binding.etPhone.text.toString())
-                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                    startActivity(intent)
-                                }
-                                .addOnFailureListener {
-                                    // Handle Realtime Database error
-                                }
-                        }
-                        .addOnFailureListener {
-                            // Handle Firestore error
+                            val phone = binding.etPhone.text.toString()
+                            webRTCRepository.login(phone, applicationContext) {
+                                binding.btnSignUp.isEnabled = true
+                                finishAffinity()
+                                val intent = Intent(this@SignUpActivity, CallingActivity::class.java)
+                                intent.putExtra("USER", phone)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
+                                startActivity(intent)
+                            }
                         }
 
                 }.addOnFailureListener {
+                    binding.btnSignUp.isEnabled = true
                     Toast.makeText(this@SignUpActivity , "Enter Proper Email or User Exist" , Toast.LENGTH_LONG).show()
 
                 }
@@ -179,6 +181,7 @@ private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential) {
 
             } else {
                 // Verification failed
+                binding.btnSignUp.isEnabled = true
                 Toast.makeText(this , "Check OTP", Toast.LENGTH_LONG).show()
             }
            }

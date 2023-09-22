@@ -1,26 +1,25 @@
 package com.chaitanya.resoluteaiassignment.webrtc
 
 import android.content.Context
-import com.chaitanya.resoluteaiassignment.model.CallModel
-import com.chaitanya.resoluteaiassignment.model.CallModelType
+import android.media.AudioManager
+import com.chaitanya.resoluteaiassignment.model.DataModel
+import com.chaitanya.resoluteaiassignment.model.DataModelType
 import com.google.gson.Gson
 import org.webrtc.*
 import java.util.*
 
+class WebRTCClient(context: Context, observer: PeerConnection.Observer, private val username: String) {
 
-class WebRTCClient(
-    private val context: Context,
-    private val observer: PeerConnection.Observer,
-    private val username: String
-) {
     private val gson = Gson()
     private val eglBaseContext: EglBase.Context = EglBase.create().eglBaseContext
     private val peerConnectionFactory: PeerConnectionFactory
     private val peerConnection: PeerConnection
     private val iceServer: MutableList<PeerConnection.IceServer> = ArrayList()
     private lateinit var videoCapturer: CameraVideoCapturer
-    private lateinit var localVideoSource: VideoSource
-    private lateinit var localAudioSource: AudioSource
+    private var localVideoSource: VideoSource
+    private var localAudioSource: AudioSource
+    private val audioManager: AudioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
     private val localTrackId = "local_track"
     private val localStreamId = "local_stream"
     private lateinit var localVideoTrack: VideoTrack
@@ -31,20 +30,25 @@ class WebRTCClient(
     var listener: Listener? = null
 
     init {
+        WebRTCClient.context = context
         initPeerConnectionFactory()
         peerConnectionFactory = createPeerConnectionFactory()
         iceServer.add(
             PeerConnection.IceServer.builder("turn:a.relay.metered.ca:443?transport=tcp")
                 .setUsername("83eebabf8b4cce9d5dbcb649")
-                .setPassword("2D7JvfkOQtBdYW3R").createIceServer()
+                .setPassword("2D7JvfkOQtBdYW3R")
+                .createIceServer()
         )
         peerConnection = createPeerConnection(observer)
         localVideoSource = peerConnectionFactory.createVideoSource(false)
+        audioManager.isSpeakerphoneOn = true
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+
         localAudioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
         mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
     }
 
-    // Initialization code
+    // Initializing peer connection section
     private fun initPeerConnectionFactory() {
         val options = PeerConnectionFactory.InitializationOptions.builder(context)
             .setFieldTrials("WebRTC-H264HighProfile/Enabled/")
@@ -68,7 +72,8 @@ class WebRTCClient(
         return peerConnectionFactory.createPeerConnection(iceServer, observer)!!
     }
 
-    // UI initialization
+    // Initializing UI like surface view renderers
+
     fun initSurfaceViewRenderer(viewRenderer: SurfaceViewRenderer) {
         viewRenderer.setEnableHardwareScaler(true)
         viewRenderer.setMirror(true)
@@ -89,11 +94,12 @@ class WebRTCClient(
         videoCapturer.initialize(helper, context, localVideoSource.capturerObserver)
         videoCapturer.startCapture(480, 360, 15)
         localVideoTrack = peerConnectionFactory.createVideoTrack(
-            "$localTrackId"+"_video", localVideoSource
+            localTrackId+"_video", localVideoSource
         )
         localVideoTrack.addSink(view)
 
-        localAudioTrack = peerConnectionFactory.createAudioTrack("$localTrackId"+"_audio", localAudioSource)
+        localAudioTrack =
+            peerConnectionFactory.createAudioTrack(localTrackId+"_audio", localAudioSource)
         localStream = peerConnectionFactory.createLocalMediaStream(localStreamId)
         localStream.addTrack(localVideoTrack)
         localStream.addTrack(localAudioTrack)
@@ -103,6 +109,7 @@ class WebRTCClient(
     private fun getVideoCapturer(): CameraVideoCapturer {
         val enumerator = Camera2Enumerator(context)
         val deviceNames = enumerator.deviceNames
+
         for (device in deviceNames) {
             if (enumerator.isFrontFacing(device)) {
                 return enumerator.createCapturer(device, null)
@@ -111,23 +118,28 @@ class WebRTCClient(
         throw IllegalStateException("Front-facing camera not found")
     }
 
-    // Negotiation section
+    fun initRemoteSurfaceView(view: SurfaceViewRenderer) {
+        initSurfaceViewRenderer(view)
+    }
+
+    // Negotiation section like call and answer
     fun call(target: String) {
         try {
             peerConnection.createOffer(object : MySdpObserver() {
-                override fun onCreateSuccess(sessionDescription: SessionDescription?) {
+                override fun onCreateSuccess(sessionDescription: SessionDescription) {
                     super.onCreateSuccess(sessionDescription)
                     peerConnection.setLocalDescription(object : MySdpObserver() {
                         override fun onSetSuccess() {
                             super.onSetSuccess()
-                            if (listener != null) {
-                                listener!!.onTransferDataToOtherPeer(
-                                    CallModel(
-                                        target, username,
-                                        sessionDescription!!.description, CallModelType.Offer
-                                    )
+                            // It's time to transfer this SDP to the other peer
+                            listener?.onTransferDataToOtherPeer(
+                                DataModel(
+                                    target,
+                                    username,
+                                    sessionDescription.description,
+                                    DataModelType.Offer
                                 )
-                            }
+                            )
                         }
                     }, sessionDescription)
                 }
@@ -136,25 +148,24 @@ class WebRTCClient(
             e.printStackTrace()
         }
     }
-    fun initRemoteSurfaceView(view: SurfaceViewRenderer?) {
-        initSurfaceViewRenderer(view!!)
-    }
+
     fun answer(target: String) {
         try {
             peerConnection.createAnswer(object : MySdpObserver() {
-                override fun onCreateSuccess(sessionDescription: SessionDescription?) {
+                override fun onCreateSuccess(sessionDescription: SessionDescription) {
                     super.onCreateSuccess(sessionDescription)
                     peerConnection.setLocalDescription(object : MySdpObserver() {
                         override fun onSetSuccess() {
                             super.onSetSuccess()
-                            if (listener != null) {
-                                listener!!.onTransferDataToOtherPeer(
-                                    CallModel(
-                                        target, username,
-                                        sessionDescription!!.description, CallModelType.Answer
-                                    )
+                            // It's time to transfer this SDP to the other peer
+                            listener?.onTransferDataToOtherPeer(
+                                DataModel(
+                                    target,
+                                    username,
+                                    sessionDescription.description,
+                                    DataModelType.Answer
                                 )
-                            }
+                            )
                         }
                     }, sessionDescription)
                 }
@@ -174,14 +185,14 @@ class WebRTCClient(
 
     fun sendIceCandidate(iceCandidate: IceCandidate, target: String) {
         addIceCandidate(iceCandidate)
-        if (listener != null) {
-            listener!!.onTransferDataToOtherPeer(
-                CallModel(
-                    target, username,
-                    gson.toJson(iceCandidate), CallModelType.IceCandidate
-                )
+        listener?.onTransferDataToOtherPeer(
+            DataModel(
+                target,
+                username,
+                gson.toJson(iceCandidate),
+                DataModelType.IceCandidate
             )
-        }
+        )
     }
 
     fun switchCamera() {
@@ -189,11 +200,11 @@ class WebRTCClient(
     }
 
     fun toggleVideo(shouldBeMuted: Boolean) {
-        localVideoTrack.setEnabled(!shouldBeMuted)
+        localVideoTrack.setEnabled(shouldBeMuted)
     }
 
     fun toggleAudio(shouldBeMuted: Boolean) {
-        localAudioTrack.setEnabled(!shouldBeMuted)
+        localAudioTrack.setEnabled(shouldBeMuted)
     }
 
     fun closeConnection() {
@@ -208,6 +219,10 @@ class WebRTCClient(
     }
 
     interface Listener {
-        fun onTransferDataToOtherPeer(model: CallModel)
+        fun onTransferDataToOtherPeer(model: DataModel)
+    }
+
+    companion object {
+        private lateinit var context: Context
     }
 }
